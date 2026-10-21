@@ -1,0 +1,21 @@
+# Python
+training/.venv/
+__pycache__/
+*.pyc
+
+# Dataset and training outputs (reproducible via training/scripts)
+data/
+runs/
+*.pt
+!training/results/best.pt
+
+# Web
+web/node_modules/
+web/dist/
+.vercel
+.env
+.env*.local
+
+# OS
+.DS_Store
+Thumbs.db
