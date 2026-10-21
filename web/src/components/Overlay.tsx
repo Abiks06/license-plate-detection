@@ -64,7 +64,8 @@ export function Overlay({
   showScore?: boolean;
 }) {
   const label = Math.max(12, Math.round(Math.min(width, height) / 38));
-  const tags = placeTags(boxes, label * (showScore ? 5.4 : 3.4), label * 1.45, label * 0.25, width, height);
+  // Monospace at weight 600 is ~0.62em per character, plus padding: fits "PLATE 100%" / "PLATE".
+  const tags = placeTags(boxes, label * (showScore ? 7.1 : 4.0), label * 1.45, label * 0.25, width, height);
 
   return (
     <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true">
@@ -102,8 +103,9 @@ export function Overlay({
                 fill="var(--accent-soft)"
                 stroke="var(--accent)"
                 strokeOpacity={0.55}
-                strokeWidth={1.5}
-                vectorEffect="non-scaling-stroke"
+                // Width in image units, not non-scaling-stroke: pathLength's dash pattern is
+                // measured in image units too, and mixing the two leaves gaps in the outline.
+                strokeWidth={label * 0.11}
                 initial={live ? false : { pathLength: 0 }}
                 animate={{ pathLength: 1 }}
                 transition={{ duration: 0.6, delay, ease }}
