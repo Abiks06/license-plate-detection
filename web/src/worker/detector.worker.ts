@@ -19,38 +19,12 @@ let active: VariantName | null = null;
 
 const post = (msg: WorkerResponse, transfer: Transferable[] = []) => self.postMessage(msg, transfer);
 
-/** Downloads the model, reporting progress, and returns its bytes. */
-async function fetchModel(variant: VariantName, url: string) {
-  const res = await fetch(url);
-  if (!res.ok || !res.body) throw new Error(`Model download failed (${res.status})`);
-  const total = Number(res.headers.get('content-length')) || 0;
-  const reader = res.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let loaded = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-    loaded += value.byteLength;
-    post({ type: 'progress', variant, loaded, total });
-  }
-  const bytes = new Uint8Array(loaded);
-  let offset = 0;
-  for (const c of chunks) {
-    bytes.set(c, offset);
-    offset += c.byteLength;
-  }
-  return bytes;
-}
-
-// Warm the HTTP cache for the runtime while the model downloads, instead of after it.
-let runtimePrefetch: Promise<unknown> | null = null;
-
-async function load(variant: VariantName, url: string, imgsz: number) {
+/** Builds a session from bytes the page already downloaded (so the page's preloads are used once). */
+async function load(variant: VariantName, model: ArrayBuffer, wasm: ArrayBuffer | undefined, imgsz: number) {
+  // The runtime binary arrives with the first model; ORT compiles it on first session creation.
+  if (wasm && !ort.env.wasm.wasmBinary) ort.env.wasm.wasmBinary = wasm;
   if (!sessions.has(variant)) {
-    runtimePrefetch ??= fetch(wasmUrl).then((r) => r.arrayBuffer()).catch(() => null);
-    const [bytes] = await Promise.all([fetchModel(variant, url), runtimePrefetch]);
-    const session = await ort.InferenceSession.create(bytes, { executionProviders: ['wasm'], graphOptimizationLevel: 'all' });
+    const session = await ort.InferenceSession.create(new Uint8Array(model), { executionProviders: ['wasm'], graphOptimizationLevel: 'all' });
     const loaded: Loaded = { session, imgsz, input: new Float32Array(3 * imgsz * imgsz), canvas: new OffscreenCanvas(imgsz, imgsz) };
     sessions.set(variant, loaded);
     // The first run compiles kernels; do it now so the first real detection is fast.
@@ -108,7 +82,7 @@ async function detect(id: number, image: ImageBitmap, threshold: number, iou: nu
 self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
   const msg = e.data;
   try {
-    if (msg.type === 'load') await load(msg.variant, msg.url, msg.imgsz);
+    if (msg.type === 'load') await load(msg.variant, msg.model, msg.wasm, msg.imgsz);
     else await detect(msg.id, msg.image, msg.threshold, msg.iou);
   } catch (err) {
     post({ type: 'error', message: err instanceof Error ? err.message : String(err), id: msg.type === 'detect' ? msg.id : undefined });

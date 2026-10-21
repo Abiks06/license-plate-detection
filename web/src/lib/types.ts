@@ -24,11 +24,11 @@ export type Manifest = {
 export type Timing = { preprocess: number; inference: number; postprocess: number; total: number };
 
 export type WorkerRequest =
-  | { type: 'load'; variant: VariantName; url: string; imgsz: number }
+  // Bytes are fetched on the page (which consumes the <link rel=preload>s) and transferred, not copied.
+  | { type: 'load'; variant: VariantName; model: ArrayBuffer; wasm?: ArrayBuffer; imgsz: number }
   | { type: 'detect'; id: number; image: ImageBitmap; threshold: number; iou: number };
 
 export type WorkerResponse =
-  | { type: 'progress'; variant: VariantName; loaded: number; total: number }
   | { type: 'ready'; variant: VariantName; backend: string; threads: number; warmup: number }
   | { type: 'result'; id: number; boxes: Box[]; timing: Timing; width: number; height: number }
   | { type: 'error'; message: string; id?: number };
