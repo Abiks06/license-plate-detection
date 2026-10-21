@@ -87,7 +87,8 @@ def main() -> None:
         "exportedAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }
     manifest["output"] = "raw [1, 4 + classes, anchors]: cx, cy, w, h in input pixels, then class scores"
-    manifest["datasets"] = DATASETS
+    used_oi = any(v["training"].get("openImages") for v in manifest["variants"].values())
+    manifest["datasets"] = DATASETS if used_oi else DATASETS[:1]
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     print(f"Wrote {args.out / filename} and models.json")
 

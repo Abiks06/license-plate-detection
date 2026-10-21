@@ -19,3 +19,10 @@ web/dist/
 # OS
 .DS_Store
 Thumbs.db
+
+# Float ONNX exports are the optimizer's input; the app serves the INT8 files
+# listed in web/public/model/models.json. Commit a float file only if
+# optimize_model.py rejected INT8 for that variant.
+web/public/model/plates-fast.onnx
+web/public/model/plates-accurate.onnx
+runs-*.log
