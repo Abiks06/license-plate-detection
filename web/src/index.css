@@ -27,7 +27,7 @@
     --text: #15161a;
     --muted: #555963;
     --faint: #6b6f78;
-    --accent: #b77a12;
+    --accent: #9a6200; /* 5.1:1 with white text, 4.7:1 on the page background */
     --on-accent: #ffffff;
     --danger: #c2410c;
     color-scheme: light;
@@ -68,6 +68,21 @@ html {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
   border-radius: 6px;
+}
+
+/* Hero intro in plain CSS so the text paints with the HTML, never waiting on JavaScript.
+   Fades start at 0.01, not 0: browsers skip fully transparent elements when timing LCP. */
+@keyframes rise {
+  from { transform: translateY(105%); }
+}
+@keyframes fade-up {
+  from { opacity: 0.01; transform: translateY(10px); }
+}
+.anim-rise { animation: rise 0.9s var(--ease-out-expo) both; }
+.anim-fade-up { animation: fade-up 0.7s var(--ease-out-expo) both; }
+@media (prefers-reduced-motion: reduce) {
+  .anim-rise,
+  .anim-fade-up { animation: none; }
 }
 
 /* Faint engineering grid behind the hero. */

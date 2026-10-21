@@ -32,8 +32,9 @@ function preloadDetector(): Plugin {
       const manifest = JSON.parse(readFileSync(new URL('model/models.json', dist), 'utf8')) as { variants: Record<string, { file: string }> }
       const first = (manifest.variants.fast ?? manifest.variants.accurate)?.file
       const links = [
-        wasm && `<link rel="preload" href="/assets/${wasm}" as="fetch" type="application/wasm" crossorigin="anonymous" />`,
-        first && `<link rel="preload" href="/model/${first}" as="fetch" crossorigin="anonymous" />`,
+        // Low priority: these are big and only needed for detection, so they must not delay first paint.
+        wasm && `<link rel="preload" href="/assets/${wasm}" as="fetch" type="application/wasm" crossorigin="anonymous" fetchpriority="low" />`,
+        first && `<link rel="preload" href="/model/${first}" as="fetch" crossorigin="anonymous" fetchpriority="low" />`,
       ].filter(Boolean)
       const htmlPath = new URL('index.html', dist)
       writeFileSync(htmlPath, readFileSync(htmlPath, 'utf8').replace('</head>', `    ${links.join('\n    ')}\n  </head>`))

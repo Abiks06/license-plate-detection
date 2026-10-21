@@ -130,7 +130,7 @@ export default function App() {
           </a>
           <nav className="flex items-center gap-5 text-sm text-muted">
             <a href="#how" className="hidden transition-colors hover:text-text sm:block">How it works</a>
-            <a href={REPO} className="flex items-center gap-1.5 transition-colors hover:text-text">
+            <a href={REPO} aria-label="Source code on GitHub" className="flex items-center gap-1.5 transition-colors hover:text-text">
               <Code className="size-4" aria-hidden="true" /> <span className="hidden sm:inline">Source</span>
             </a>
           </nav>
@@ -142,40 +142,31 @@ export default function App() {
           <div className="grid-bg pointer-events-none absolute inset-0" aria-hidden="true" />
           <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-4 pb-10 pt-16 sm:px-6 sm:pt-24 lg:grid-cols-[minmax(0,1fr)_420px]">
             <div>
-            <m.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease }}>
+            {/* Hero animates with CSS (see index.css) so it never waits for JavaScript to show. */}
+            <div className="anim-fade-up">
               <Status state={state} />
-            </m.div>
+            </div>
             <h1 className="mt-6 max-w-3xl text-4xl font-semibold leading-[1.05] tracking-tight sm:text-6xl">
               {['Find license plates', 'in any photo.'].map((line, i) => (
                 <span key={line} className="block overflow-hidden pb-1">
-                  <m.span className={`block ${i === 1 ? 'text-accent' : ''}`} initial={{ y: '105%' }} animate={{ y: 0 }} transition={{ duration: 0.9, delay: 0.1 + i * 0.1, ease }}>
+                  <span className={`anim-rise block ${i === 1 ? 'text-accent' : ''}`} style={{ animationDelay: `${0.1 + i * 0.1}s` }}>
                     {line}
-                  </m.span>
+                  </span>
                 </span>
               ))}
             </h1>
-            <m.p className="mt-5 max-w-xl text-lg leading-relaxed text-muted" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.35, ease }}>
+            <p className="anim-fade-up mt-5 max-w-xl text-lg leading-relaxed text-muted" style={{ animationDelay: '0.3s' }}>
               A YOLO11 neural network that runs entirely in your browser. Detect plates in photos or live from your camera, then redact them in one click. Nothing is ever uploaded.
-            </m.p>
+            </p>
             {isPreview(manifest) && (
-              <m.p
-                className="mt-6 inline-flex items-center gap-2 rounded-lg border border-accent/40 bg-accent-soft px-3 py-2 text-sm"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
-              >
+              <p className="anim-fade-up mt-6 inline-flex items-center gap-2 rounded-lg border border-accent/40 bg-accent-soft px-3 py-2 text-sm">
                 <Sparkles className="size-4 text-accent" aria-hidden="true" /> Preview model: the fully trained detectors are on their way.
-              </m.p>
+              </p>
             )}
             </div>
-            <m.div
-              className="hidden lg:block"
-              initial={{ opacity: 0, y: 16, rotate: 1.5 }}
-              animate={{ opacity: 1, y: 0, rotate: 0 }}
-              transition={{ duration: 0.9, delay: 0.25, ease }}
-            >
+            <div className="anim-fade-up hidden lg:block" style={{ animationDelay: '0.25s' }}>
               <HeroDemo />
-            </m.div>
+            </div>
           </div>
         </section>
 
@@ -256,14 +247,14 @@ export default function App() {
       <footer className="border-t border-line">
         <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-8 text-xs text-faint sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <p>
-            Built by <a href={PORTFOLIO} className="text-muted underline-offset-4 hover:text-text hover:underline">Ayomide Abikoye</a>. Code AGPL-3.0.
+            Built by <a href={PORTFOLIO} className="text-muted underline underline-offset-4 hover:text-text">Ayomide Abikoye</a>. Code AGPL-3.0.
           </p>
           <p>
             Data:{' '}
             {(manifest?.datasets ?? []).map((d, i) => (
               <span key={d.url}>
                 {i > 0 && ' · '}
-                <a href={d.url} className="underline-offset-4 hover:text-text hover:underline">{d.name}</a> ({d.license})
+                <a href={d.url} className="underline underline-offset-4 hover:text-text">{d.name}</a> ({d.license})
               </span>
             ))}
           </p>

@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import type { Box } from '../lib/types';
 import { Overlay } from './Overlay';
 
-type Sample = { id: number; src: string; width: number; height: number; truth: Omit<Box, 'score'>[] };
+type Sample = { id: number; src: string; hero: string; width: number; height: number; truth: Omit<Box, 'score'>[] };
 
 const BASE = import.meta.env.BASE_URL;
 const SCAN_MS = 1100;
@@ -48,7 +48,7 @@ export function HeroDemo() {
       <div className="relative overflow-hidden rounded-2xl border border-line bg-surface shadow-2xl shadow-black/30" style={{ aspectRatio: `${s.width} / ${s.height}` }}>
         <AnimatePresence initial={false}>
           <m.div key={s.id} className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.6 }}>
-            <img src={BASE + s.src} alt="" className="h-full w-full object-cover" decoding="async" />
+            <img src={BASE + s.hero} alt="" className="h-full w-full object-cover" decoding="async" fetchPriority={i === 0 ? 'high' : 'auto'} />
             <Overlay width={s.width} height={s.height} boxes={showBoxes ? s.truth.map((b) => ({ ...b, score: 1 })) : []} scanning={!showBoxes} showScore={false} />
           </m.div>
         </AnimatePresence>

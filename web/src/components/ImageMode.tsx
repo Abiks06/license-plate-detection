@@ -183,6 +183,7 @@ export function ImageMode({
             ref={input}
             type="file"
             accept="image/*"
+            aria-label="Choose an image"
             className="sr-only"
             onChange={(e) => {
               const file = e.target.files?.[0];
