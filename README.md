@@ -10,11 +10,11 @@ A YOLO11 license plate detector that runs **entirely in your browser**. Detect p
 
 ## Features
 
-- **On-device inference:** ONNX Runtime Web in a Web Worker on multi-threaded WebAssembly (cross-origin isolated). Nothing is uploaded.
+- **On-device inference:** ONNX Runtime Web in Web Workers. It answers on the CPU (multi-threaded WebAssembly) within about two seconds, and on devices with a hardware GPU it warms up WebGPU in the background and switches over when ready. Nothing is uploaded.
 - **Two models:** *Fast* (YOLO11n, 640px) for live video and *Accurate* (YOLO11s, 768px) for photos, with each one's measured test accuracy shown in the app.
 - **Image and live camera modes:** drag and drop, paste, browse, eight test-set samples, or real-time webcam detection with an FPS meter.
 - **One-click redaction:** plates are pixelated (not blurred, so they can't be sharpened back) and the image downloads locally.
-- **Hardened delivery:** strict Content-Security-Policy, self-hosted fonts, immutable caching for hashed assets, and the runtime and first model preloaded from the HTML.
+- **Hardened delivery:** strict Content-Security-Policy, self-hosted fonts, immutable caching for hashed assets, and the first model preloaded from the HTML.
 
 ## Results
 
@@ -41,20 +41,22 @@ Every compression option goes through the same gate: it ships only if mAP@50 dro
 
 ### Speed
 
-Measured in Edge on an Intel i7-1255U laptop **running on battery** (Balanced power plan), 4 WebAssembly threads:
+Median per image on the eight samples, in Edge on an Intel i7-1255U laptop with Iris Xe graphics, **running on battery** (Balanced power plan). Both backends find the same plates.
 
-| Model | Median per image |
-| :-- | :-- |
-| Fast | ~400 ms |
-| Accurate | ~1.35 s |
+| Model | WebAssembly (CPU, 4 threads) | WebGPU (Iris Xe) | Speed-up |
+| :-- | :-- | :-- | :-- |
+| Fast | 382 ms | **179 ms** | 2.1× |
+| Accurate | 1,432 ms | **269 ms** | 5.3× |
 
-Under the same battery conditions, the earlier 320px CPU stand-in took ~70 ms, versus ~26 ms on mains power. That suggests roughly 2.5–3× faster times on a plugged-in laptop: about 130 ms (Fast) and 0.5 s (Accurate).
+WebGPU's first run compiles GPU shaders: about 8 s on a first visit, about 0.3 s afterwards because the browser caches them. So the app never waits for it: it is ready on the CPU in about 2 s, warms WebGPU in a second worker, and hands over once that worker is ready for the selected model. That takes about 11 s on a first visit and about 4 s on later ones. Devices without a hardware GPU never download the WebGPU runtime. Append `?backend=wasm` or `?backend=webgpu` to the URL to force one backend.
+
+On mains power the CPU path is roughly 2.5–3× faster than these battery figures.
 
 ### Limitations
 
 - Training data is mostly Vietnamese CCTV and Open Images photos; accuracy on Ghanaian plates hasn't been measured.
 - Detection only: plates are located, not read (no OCR).
-- WebAssembly only. A WebGPU backend would speed up the Accurate model, at the cost of a larger runtime download.
+- On GPU devices the first visit downloads both runtimes (about 3.5 MB + 6.4 MB compressed); both are cached after that.
 
 ## How it works
 

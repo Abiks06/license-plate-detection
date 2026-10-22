@@ -15,7 +15,9 @@ const PORTFOLIO = 'https://ayomide-abikoye.vercel.app';
 function Status({ state }: { state: DetectorState }) {
   const text =
     state.status === 'ready'
-      ? `Ready · WebAssembly · ${state.threads} thread${state.threads === 1 ? '' : 's'}`
+      ? state.backend === 'webgpu'
+        ? 'Ready · WebGPU'
+        : `Ready · WebAssembly · ${state.threads} thread${state.threads === 1 ? '' : 's'}${state.upgrading ? ' · tuning GPU…' : ''}`
       : state.status === 'loading'
         ? `Loading model ${Math.round(state.progress * 100)}%`
         : state.status === 'error'
@@ -148,7 +150,7 @@ const STEPS = [
   { icon: ImageIcon, title: 'Letterbox', body: 'Your image is scaled into a square model input on a canvas, padded with grey so nothing is stretched.' },
   { icon: Cpu, title: 'YOLO11', body: 'A convolutional neural network fine-tuned on thousands of labelled plates scores every region of the image in one pass.' },
   { icon: ScanSearch, title: 'Decode + NMS', body: 'Candidate boxes above your confidence threshold are mapped back to the photo; overlapping duplicates are suppressed.' },
-  { icon: Lock, title: 'Stays on device', body: 'All of it runs in a Web Worker with WebAssembly. No upload, no server, no tracking: close the tab and it’s gone.' },
+  { icon: Lock, title: 'Stays on device', body: 'All of it runs in a Web Worker, on your GPU via WebGPU where available or on the CPU via WebAssembly. No upload, no server, no tracking: close the tab and it’s gone.' },
 ];
 
 export default function App() {

@@ -25,7 +25,7 @@ export type Timing = { preprocess: number; inference: number; postprocess: numbe
 
 export type WorkerRequest =
   // Bytes are fetched on the page (which consumes the <link rel=preload>s) and transferred, not copied.
-  | { type: 'load'; variant: VariantName; model: ArrayBuffer; wasm?: ArrayBuffer; imgsz: number }
+  | { type: 'load'; variant: VariantName; model: ArrayBuffer; runtime?: { backend: 'webgpu' | 'wasm'; wasm: ArrayBuffer }; imgsz: number }
   | { type: 'detect'; id: number; image: ImageBitmap; threshold: number; iou: number };
 
 export type WorkerResponse =

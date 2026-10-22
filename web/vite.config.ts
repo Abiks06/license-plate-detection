@@ -1,6 +1,6 @@
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { defineConfig, type Plugin } from 'vite'
 
 // Cross-origin isolation unlocks SharedArrayBuffer, which multi-threaded
@@ -17,10 +17,10 @@ const vercel = JSON.parse(readFileSync(new URL('./vercel.json', import.meta.url)
 const csp = vercel.headers[0].headers.find((h) => h.key === 'Content-Security-Policy')!.value
 
 /**
- * Adds <link rel="preload"> tags for the WebAssembly runtime and the first model to the
- * built index.html, so both start downloading while the HTML is parsed instead of after
- * the app and worker boot. Runs after the build because the worker's hashed .wasm name
- * only exists once the worker bundle has been written.
+ * Adds a <link rel="preload"> for the first model (named in models.json) to the built
+ * index.html, so it starts downloading while the HTML is parsed. The runtime isn't
+ * preloaded: which build to fetch (WebGPU or CPU) depends on the device, so
+ * src/lib/runtime.ts starts that download as soon as the app's JavaScript runs.
  */
 function preloadDetector(): Plugin {
   return {
@@ -28,16 +28,12 @@ function preloadDetector(): Plugin {
     apply: 'build',
     closeBundle() {
       const dist = new URL('./dist/', import.meta.url)
-      const wasm = readdirSync(new URL('assets/', dist)).find((f) => /^ort-wasm-simd-threaded.*\.wasm$/.test(f))
       const manifest = JSON.parse(readFileSync(new URL('model/models.json', dist), 'utf8')) as { variants: Record<string, { file: string }> }
       const first = (manifest.variants.fast ?? manifest.variants.accurate)?.file
-      const links = [
-        // Low priority: these are big and only needed for detection, so they must not delay first paint.
-        wasm && `<link rel="preload" href="/assets/${wasm}" as="fetch" type="application/wasm" crossorigin="anonymous" fetchpriority="low" />`,
-        first && `<link rel="preload" href="/model/${first}" as="fetch" crossorigin="anonymous" fetchpriority="low" />`,
-      ].filter(Boolean)
+      if (!first) return
+      const link = `<link rel="preload" href="/model/${first}" as="fetch" crossorigin="anonymous" fetchpriority="low" />`
       const htmlPath = new URL('index.html', dist)
-      writeFileSync(htmlPath, readFileSync(htmlPath, 'utf8').replace('</head>', `    ${links.join('\n    ')}\n  </head>`))
+      writeFileSync(htmlPath, readFileSync(htmlPath, 'utf8').replace('</head>', `    ${link}\n  </head>`))
     },
   }
 }
