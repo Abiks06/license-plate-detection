@@ -48,13 +48,13 @@ Median per image on the eight samples, in Edge on an Intel i7-1255U laptop with 
 | Fast | 382 ms | **179 ms** | 2.1× |
 | Accurate | 1,432 ms | **269 ms** | 5.3× |
 
-WebGPU's first run compiles GPU shaders: about 8 s on a first visit, about 0.3 s afterwards because the browser caches them. So the app never waits for it: it is ready on the CPU in about 2 s, warms WebGPU in a second worker, and hands over once that worker is ready for the selected model. That takes about 11 s on a first visit and about 4 s on later ones. Devices without a hardware GPU never download the WebGPU runtime. Append `?backend=wasm` or `?backend=webgpu` to the URL to force one backend.
+WebGPU's first run compiles GPU shaders: about 8 s on a first visit, about 0.3 s afterwards because the browser caches them. So the app never waits for it: it is ready on the CPU as soon as the model has arrived, warms WebGPU in a second worker, and hands over once that worker is ready for the selected model. The WebGPU runtime is only fetched after the CPU worker is ready, so it never slows the first detection. On a repeat visit (files cached) the live site is ready in about 2 s and on WebGPU by about 6 s; a first visit depends on how fast the 5.4 MB model downloads. Devices without a hardware GPU never download the WebGPU runtime. Append `?backend=wasm` or `?backend=webgpu` to the URL to force one backend.
 
 On mains power the CPU path is roughly 2.5–3× faster than these battery figures.
 
 ### Limitations
 
-- Training data is mostly Vietnamese CCTV and Open Images photos; accuracy on Ghanaian plates hasn't been measured.
+- Training data is mostly Vietnamese CCTV and Open Images photos; accuracy on Ghanaian plates hasn't been measured yet (see [Test on Ghanaian plates](#test-on-ghanaian-plates)).
 - Detection only: plates are located, not read (no OCR).
 - On GPU devices the first visit downloads both runtimes (about 3.5 MB + 6.4 MB compressed); both are cached after that.
 
@@ -94,6 +94,16 @@ training/.venv/Scripts/python training/scripts/export.py --variant fast
 
 **Run the app:** see [`web/README.md`](web/README.md).
 
+### Test on Ghanaian plates
+
+`evaluate_external.py` scores the served ONNX files on any dataset they never trained on. Download the Roboflow Universe datasets [Ghanaian License Plates](https://universe.roboflow.com/ghana-licenses/ghanaian-license-plates-6vwgc) (public domain) and [Ghana License Plate Detector](https://universe.roboflow.com/aklikaisaac300-gmail-com/ghana-license-plate-detector) (CC BY 4.0) in *YOLOv11* format, then:
+
+```bash
+training/.venv/Scripts/python training/scripts/evaluate_external.py --name ghana path/to/first.zip path/to/second.zip
+```
+
+It merges every split into one test set, keeps only plate classes, removes photos shared between the datasets and Roboflow's augmented copies, and writes `training/results/ghana.json` with scores for all images and for the unaugmented ("clean") subset.
+
 ## Repository layout
 
 ```
@@ -103,6 +113,7 @@ training/
   scripts/benchmark_sizes.py   accuracy vs speed per input size
   scripts/export.py            evaluate on test splits, export ONNX + models.json
   scripts/optimize_model.py    INT8 / float16 candidates behind an accuracy gate
+  scripts/evaluate_external.py score the served models on an outside dataset (e.g. Ghana)
   results/{fast,accurate}/     trained weights, training curves, PR curves, confusion matrices
   train_colab.ipynb            one-click GPU training
 web/                           PlateSight (Vite, React, Tailwind, Motion, ONNX Runtime Web)
