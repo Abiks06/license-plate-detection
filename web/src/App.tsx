@@ -106,6 +106,44 @@ function Metrics({ manifest, variant }: { manifest: Manifest; variant: VariantNa
   );
 }
 
+/** Both shipped models side by side, so the size/accuracy trade-off is visible rather than asserted. */
+function Comparison({ manifest, active }: { manifest: Manifest; active: VariantName }) {
+  const rows = (['fast', 'accurate'] as const).flatMap((v) => (manifest.variants[v] ? [[v, manifest.variants[v]!] as const] : []));
+  if (rows.length < 2) return null;
+  return (
+    <div className="mt-6 overflow-x-auto rounded-2xl border border-line">
+      <table className="w-full min-w-[520px] text-left text-sm">
+        <caption className="sr-only">Fast and Accurate models compared on held-out test images</caption>
+        <thead className="bg-surface-2/60 font-mono text-[11px] uppercase tracking-wider text-faint">
+          <tr>
+            <th scope="col" className="px-4 py-3 font-medium">Model</th>
+            <th scope="col" className="px-4 py-3 font-medium">mAP@50 in the wild</th>
+            <th scope="col" className="px-4 py-3 font-medium">mAP@50–95</th>
+            <th scope="col" className="px-4 py-3 font-medium">Recall</th>
+            <th scope="col" className="px-4 py-3 font-medium">Download</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-line bg-surface">
+          {rows.map(([v, meta]) => {
+            const s = meta.metrics.inTheWild ?? meta.metrics.all;
+            return (
+              <tr key={v} className={v === active ? 'bg-accent-soft' : undefined}>
+                <th scope="row" className="px-4 py-3 font-medium">
+                  {v === 'fast' ? 'Fast' : 'Accurate'} <span className="font-mono text-xs font-normal text-faint">{meta.architecture} · {meta.imgsz}px</span>
+                </th>
+                <td className="px-4 py-3 font-mono tabular-nums">{pct(s.mAP50)}</td>
+                <td className="px-4 py-3 font-mono tabular-nums">{pct(s.mAP50_95)}</td>
+                <td className="px-4 py-3 font-mono tabular-nums">{pct(s.recall)}</td>
+                <td className="px-4 py-3 font-mono tabular-nums">{formatBytes(meta.bytes)}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 const STEPS = [
   { icon: ImageIcon, title: 'Letterbox', body: 'Your image is scaled into a square model input on a canvas, padded with grey so nothing is stretched.' },
   { icon: Cpu, title: 'YOLO11', body: 'A convolutional neural network fine-tuned on thousands of labelled plates scores every region of the image in one pass.' },
@@ -239,6 +277,7 @@ export default function App() {
                 {variant === 'fast' ? 'Fast' : 'Accurate'} model, measured on images it never trained on
               </p>
               <Metrics manifest={manifest} variant={variant} />
+              <Comparison manifest={manifest} active={variant} />
             </div>
           )}
         </section>

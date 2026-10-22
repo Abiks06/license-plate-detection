@@ -1,40 +1,200 @@
 {
   "variants": {
     "fast": {
-      "file": "plates-fast.int8.onnx",
-      "bytes": 3149466,
+      "file": "plates-fast.fp16.onnx",
+      "bytes": 5406296,
       "architecture": "YOLO11n",
-      "imgsz": 320,
+      "imgsz": 640,
       "classes": [
         "license_plate"
       ],
       "metrics": {
         "all": {
-          "mAP50": 0.9085,
-          "mAP50_95": 0.4756,
-          "precision": 0.9192,
-          "recall": 0.8445
+          "mAP50": 0.9065,
+          "mAP50_95": 0.6124,
+          "precision": 0.9555,
+          "recall": 0.8609
+        },
+        "inTheWild": {
+          "mAP50": 0.8731,
+          "mAP50_95": 0.583,
+          "precision": 0.9454,
+          "recall": 0.8214
         }
       },
       "training": {
-        "epochs": 3,
-        "imgsz": 320,
-        "fraction": 0.15,
-        "device": "cpu",
-        "openImages": false
+        "epochs": 120,
+        "imgsz": 768,
+        "fraction": 1.0,
+        "device": "0",
+        "openImages": true
       },
-      "exportedAt": "2026-10-21T20:34:32+00:00",
+      "exportedAt": "2026-10-22T09:52:03+00:00",
       "int8": {
         "file": "plates-fast.int8.onnx",
-        "bytes": 3149466,
-        "mAP50": 0.9081,
-        "floatMAP50": 0.9107,
-        "cpuMsFloat": 23.2,
-        "cpuMsInt8": 22.5,
-        "adopted": true
+        "bytes": 3275566,
+        "metrics": {
+          "all": {
+            "mAP50": 0.8226,
+            "mAP50_95": 0.485,
+            "precision": 0.766,
+            "recall": 0.7935
+          },
+          "inTheWild": {
+            "mAP50": 0.7727,
+            "mAP50_95": 0.4409,
+            "precision": 0.7011,
+            "recall": 0.7855
+          }
+        },
+        "mAP50Drop": {
+          "all": 0.0839,
+          "inTheWild": 0.1004
+        },
+        "cpuMsFloat": 59.1,
+        "cpuMsInt8": 39.3,
+        "adopted": false
       },
       "floatFile": "plates-fast.onnx",
-      "floatBytes": 10537299
+      "floatBytes": 10663407,
+      "floatMetrics": {
+        "all": {
+          "mAP50": 0.9065,
+          "mAP50_95": 0.6122,
+          "precision": 0.9556,
+          "recall": 0.8606
+        },
+        "inTheWild": {
+          "mAP50": 0.8731,
+          "mAP50_95": 0.5828,
+          "precision": 0.9453,
+          "recall": 0.8214
+        }
+      },
+      "candidates": {
+        "fp16": {
+          "bytes": 5406296,
+          "metrics": {
+            "all": {
+              "mAP50": 0.9065,
+              "mAP50_95": 0.6124,
+              "precision": 0.9555,
+              "recall": 0.8609
+            },
+            "inTheWild": {
+              "mAP50": 0.8731,
+              "mAP50_95": 0.583,
+              "precision": 0.9454,
+              "recall": 0.8214
+            }
+          },
+          "mAP50Drop": {
+            "all": 0.0,
+            "inTheWild": 0.0
+          },
+          "cpuMs": 56.2,
+          "cpuMsFloat": 54.6,
+          "adopted": true
+        }
+      }
+    },
+    "accurate": {
+      "file": "plates-accurate.fp16.onnx",
+      "bytes": 19075994,
+      "architecture": "YOLO11s",
+      "imgsz": 768,
+      "classes": [
+        "license_plate"
+      ],
+      "metrics": {
+        "all": {
+          "mAP50": 0.9221,
+          "mAP50_95": 0.618,
+          "precision": 0.9456,
+          "recall": 0.8723
+        },
+        "inTheWild": {
+          "mAP50": 0.8937,
+          "mAP50_95": 0.5876,
+          "precision": 0.9301,
+          "recall": 0.8382
+        }
+      },
+      "training": {
+        "epochs": 120,
+        "imgsz": 768,
+        "fraction": 1.0,
+        "device": "0",
+        "openImages": true
+      },
+      "exportedAt": "2026-10-22T02:37:44+00:00",
+      "int8": {
+        "file": "plates-accurate.int8.onnx",
+        "bytes": 10280719,
+        "metrics": {
+          "all": {
+            "mAP50": 0.9068,
+            "mAP50_95": 0.5876,
+            "precision": 0.9477,
+            "recall": 0.8216
+          },
+          "inTheWild": {
+            "mAP50": 0.875,
+            "mAP50_95": 0.5582,
+            "precision": 0.9355,
+            "recall": 0.77
+          }
+        },
+        "mAP50Drop": {
+          "all": 0.0154,
+          "inTheWild": 0.0187
+        },
+        "cpuMsFloat": 239.8,
+        "cpuMsInt8": 112.7,
+        "adopted": false
+      },
+      "floatFile": "plates-accurate.onnx",
+      "floatBytes": 38002209,
+      "floatMetrics": {
+        "all": {
+          "mAP50": 0.9222,
+          "mAP50_95": 0.6179,
+          "precision": 0.9456,
+          "recall": 0.8723
+        },
+        "inTheWild": {
+          "mAP50": 0.8937,
+          "mAP50_95": 0.5876,
+          "precision": 0.9305,
+          "recall": 0.8378
+        }
+      },
+      "candidates": {
+        "fp16": {
+          "bytes": 19075994,
+          "metrics": {
+            "all": {
+              "mAP50": 0.9221,
+              "mAP50_95": 0.618,
+              "precision": 0.9456,
+              "recall": 0.8723
+            },
+            "inTheWild": {
+              "mAP50": 0.8937,
+              "mAP50_95": 0.5876,
+              "precision": 0.9301,
+              "recall": 0.8382
+            }
+          },
+          "mAP50Drop": {
+            "all": 0.0001,
+            "inTheWild": 0.0
+          },
+          "cpuMs": 466.2,
+          "cpuMsFloat": 216.0,
+          "adopted": true
+        }
+      }
     }
   },
   "output": "raw [1, 4 + classes, anchors]: cx, cy, w, h in input pixels, then class scores",
@@ -43,6 +203,11 @@
       "name": "Vehicle Registration Plates (Augmented Startups, Roboflow Universe)",
       "license": "CC BY 4.0",
       "url": "https://universe.roboflow.com/augmented-startups/vehicle-registration-plates-trudk"
+    },
+    {
+      "name": "Open Images V7: Vehicle registration plate",
+      "license": "CC BY 4.0 annotations; images CC BY 2.0",
+      "url": "https://storage.googleapis.com/openimages/web/index.html"
     }
   ]
 }

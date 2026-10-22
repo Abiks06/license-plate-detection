@@ -99,12 +99,14 @@ OI_CLASS = "Vehicle registration plate"
 OI_SPLITS = {"train": "train", "validation": "val", "test": "test"}
 
 
-def add_open_images(out: Path, max_train: int) -> dict[str, tuple[int, int]]:
+def add_open_images(out: Path, max_train: int, splits: list[str]) -> dict[str, tuple[int, int]]:
     """Append Open Images V7 plate images to the YOLO folders. Returns per-split counts."""
     import fiftyone.zoo as foz  # optional dependency, imported only when asked for
 
     counts = {}
     for oi_split, yolo_split in OI_SPLITS.items():
+        if oi_split not in splits:
+            continue
         ds = foz.load_zoo_dataset(
             "open-images-v7",
             split=oi_split,
@@ -145,6 +147,11 @@ def main() -> None:
     parser.add_argument("--data", type=Path, default=Path("data"), help="root for raw/, extracted/ and yolo/")
     parser.add_argument("--skip-download", action="store_true", help="use zips already in <data>/raw")
     parser.add_argument("--open-images", type=int, default=0, metavar="N", help="also add up to N Open Images training images (0 = off)")
+    parser.add_argument(
+        "--open-images-splits",
+        default="train,validation,test",
+        help="Open Images splits to add; 'test' alone gives the in-the-wild score without the 2 GB training metadata",
+    )
     args = parser.parse_args()
 
     raw, extracted, out = args.data / "raw", args.data / "extracted", args.data / "yolo"
@@ -165,7 +172,8 @@ def main() -> None:
 
     if args.open_images:
         print(f"Adding Open Images V7 '{OI_CLASS}' (up to {args.open_images} training images)")
-        for split, (n_img, n_box) in add_open_images(out, args.open_images).items():
+        splits = [s.strip() for s in args.open_images_splits.split(",") if s.strip()]
+        for split, (n_img, n_box) in add_open_images(out, args.open_images, splits).items():
             print(f"  {split:5s}: +{n_img:5d} images, +{n_box:5d} plates")
         # Ultralytics accepts a .txt list of image paths as a split.
         oi_test = sorted(p.resolve().as_posix() for p in (out / "images" / "test").glob("oi_*"))
