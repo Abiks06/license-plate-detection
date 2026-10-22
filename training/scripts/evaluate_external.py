@@ -9,7 +9,8 @@ input size the app uses. Nothing here is used for training.
 - Duplicates are removed: Roboflow forks re-share the same photos, and its augmented training
   copies share the original's file stem (``IMG_1_jpg.rf.<hash>.jpg``). Unaugmented valid/test
   copies win over training ones.
-- "clean" scores only images that came from valid/test splits, which Roboflow never augments.
+- "clean" scores only unaugmented images (valid/test splits, which Roboflow never augments),
+  and is reported only when an export was augmented.
 
     python training/scripts/evaluate_external.py --name ghana ~/Downloads/ghana-a.zip ~/Downloads/ghana-b.zip
 """
@@ -62,6 +63,15 @@ def plate_classes(root: Path) -> set[int]:
     return keep
 
 
+def credit(root: Path) -> dict | None:
+    """Name, licence and link for the app's data credits, from a Roboflow export's data.yaml."""
+    rf = yaml.safe_load(next(root.rglob("data.yaml")).read_text(encoding="utf-8")).get("roboflow")
+    if not rf:
+        return None
+    name = rf["project"].replace("-", " ").title()
+    return {"name": f"{name} ({rf['workspace']}, Roboflow Universe; test only)", "license": rf["license"], "url": f"https://universe.roboflow.com/{rf['workspace']}/{rf['project']}"}
+
+
 def boxes(label: Path, keep: set[int]) -> list[str]:
     """YOLO box lines for plate classes; polygons become their bounding boxes."""
     out = []
@@ -82,12 +92,14 @@ def collect(roots: list[Path]) -> list[tuple[Path, list[str], bool]]:
     found = []
     for root in roots:
         keep = plate_classes(root)
-        for image in root.rglob("*"):
-            if image.suffix.lower() not in IMAGE_TYPES or image.parent.name != "images":
-                continue
+        images = [i for i in root.rglob("*") if i.suffix.lower() in IMAGE_TYPES and i.parent.name == "images"]
+        # Augmentation leaves several copies of one source photo; without repeats, every split is original.
+        stems = [i.name.split(".rf.")[0] for i in images]
+        augmented = len(set(stems)) < len(stems)
+        for image in images:
             split = image.parent.parent.name.lower()
             label = image.parent.parent / "labels" / f"{image.stem}.txt"
-            found.append((SPLIT_ORDER.get(split, 2), image, boxes(label, keep), split != "train"))
+            found.append((SPLIT_ORDER.get(split, 2), image, boxes(label, keep), split != "train" or not augmented))
     found.sort(key=lambda f: f[0])
     seen_stems, seen_hashes, unique = set(), set(), []
     for _, image, lines, clean in found:
@@ -132,6 +144,7 @@ def main() -> None:
     p.add_argument("--model-dir", type=Path, default=Path("web/public/model"))
     p.add_argument("--data", type=Path, default=Path("data/external"))
     p.add_argument("--results", type=Path, default=Path("training/results"))
+    p.add_argument("--no-manifest", action="store_true", help="don't add the scores and credits to models.json")
     args = p.parse_args()
 
     raw = args.data / args.name / "raw"
@@ -152,6 +165,14 @@ def main() -> None:
         print(f"[{variant}] {model.name} at {meta['imgsz']}px")
         results["variants"][variant] = {"file": model.name, "imgsz": meta["imgsz"], **{k: score(model, d, meta["imgsz"]) for k, d in sets.items()}}
         print("  ", json.dumps(results["variants"][variant]))
+
+    if not args.no_manifest:
+        # The app shows metrics.<name> next to the in-the-wild score and credits the datasets.
+        for variant, r in results["variants"].items():
+            manifest["variants"][variant]["metrics"][args.name] = r["all"]
+        known = {d["url"] for d in manifest["datasets"]}
+        manifest["datasets"] += [c for c in map(credit, roots) if c and c["url"] not in known]
+        (args.model_dir / "models.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
 
     args.results.mkdir(parents=True, exist_ok=True)
     out = args.results / f"{args.name}.json"

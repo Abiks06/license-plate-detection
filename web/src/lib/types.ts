@@ -12,7 +12,8 @@ export type VariantMeta = {
   architecture: string;
   imgsz: number;
   classes: string[];
-  metrics: { all: Metrics; inTheWild?: Metrics };
+  // ghana: an outside test set (training/scripts/evaluate_external.py), never trained on.
+  metrics: { all: Metrics; inTheWild?: Metrics; ghana?: Metrics };
   training: { epochs: number; imgsz: number; fraction: number; device: string; openImages: boolean };
 };
 

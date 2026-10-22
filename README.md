@@ -20,13 +20,14 @@ A YOLO11 license plate detector that runs **entirely in your browser**. Detect p
 
 Both models were trained on a Colab GPU for up to 120 epochs at 768px with early stopping (Fast peaked at epoch 76, Accurate at 64). Scores below are for the **exact ONNX files the app serves**, evaluated at the input size the app uses.
 
-| Model | Input | mAP@50 in the wild | mAP@50–95 in the wild | Precision / Recall (wild) | mAP@50, full test set | Download |
-| :-- | :-- | :-- | :-- | :-- | :-- | :-- |
-| **Fast** · YOLO11n | 640px | **0.873** | 0.583 | 0.945 / 0.821 | 0.907 | **5.4 MB** |
-| **Accurate** · YOLO11s | 768px | **0.894** | 0.588 | 0.930 / 0.838 | 0.922 | **19.1 MB** |
+| Model | Input | mAP@50 in the wild | mAP@50–95 in the wild | Precision / Recall (wild) | mAP@50, Ghanaian plates | mAP@50, full test set | Download |
+| :-- | :-- | :-- | :-- | :-- | :-- | :-- | :-- |
+| **Fast** · YOLO11n | 640px | **0.873** | 0.583 | 0.945 / 0.821 | **0.956** | 0.907 | **5.4 MB** |
+| **Accurate** · YOLO11s | 768px | **0.894** | 0.588 | 0.930 / 0.838 | **0.954** | 0.922 | **19.1 MB** |
 
 - **In the wild:** 2,065 held-out Open Images photos (2,843 plates) of streets, cars and phone shots. This is the honest number.
 - **Full test set:** those photos plus 882 held-out Roboflow images. The Roboflow split is mostly parking-garage CCTV with near-duplicate frames, which flatters scores, so it isn't reported alone.
+- **Ghanaian plates:** all 321 photos (380 plates) of [Ghanaian License Plates](https://universe.roboflow.com/luther-eyandi/ghanaian-license-plates) (public domain), a dataset the models never saw: phone shots of cars in Accra car parks plus a few plate graphics. Neither model was trained on a single Ghanaian plate. Precision / recall: Fast 0.948 / 0.904, Accurate 0.918 / 0.918. Looking through the errors, many "false positives" are real plates on background cars that the dataset didn't label, so precision is understated; the genuine misses are mostly motion-blurred close-ups. The photos were stretched to 640×640 by the dataset's export, which a real camera wouldn't do. Scores come from `training/results/ghana.json`.
 - On the eight varied sample images in the app, both models find all 8 real plates with no false positives (74–88% confidence). The dataset also labels a "CityBus" sign as a plate, which both models correctly ignore.
 
 ### Optimisation decisions
@@ -54,7 +55,7 @@ On mains power the CPU path is roughly 2.5–3× faster than these battery figur
 
 ### Limitations
 
-- Training data is mostly Vietnamese CCTV and Open Images photos; accuracy on Ghanaian plates hasn't been measured yet (see [Test on Ghanaian plates](#test-on-ghanaian-plates)).
+- Training data is mostly Vietnamese CCTV and Open Images photos. It transfers well to Ghanaian plates (0.95 mAP@50), but that test set is 321 car-park photos from one dataset; night scenes, moving traffic and motorbike plates are untested.
 - Detection only: plates are located, not read (no OCR).
 - On GPU devices the first visit downloads both runtimes (about 3.5 MB + 6.4 MB compressed); both are cached after that.
 
@@ -102,7 +103,7 @@ training/.venv/Scripts/python training/scripts/export.py --variant fast
 training/.venv/Scripts/python training/scripts/evaluate_external.py --name ghana path/to/first.zip path/to/second.zip
 ```
 
-It merges every split into one test set, keeps only plate classes, removes photos shared between the datasets and Roboflow's augmented copies, and writes `training/results/ghana.json` with scores for all images and for the unaugmented ("clean") subset.
+It merges every split into one test set, keeps only plate classes, removes photos shared between the datasets and Roboflow's augmented copies, and writes `training/results/ghana.json` (plus an unaugmented "clean" subset score when an export was augmented). It also adds the scores and dataset credit to `models.json`, which the app shows. Pass several zips to merge datasets; the results above use the first dataset only.
 
 ## Repository layout
 

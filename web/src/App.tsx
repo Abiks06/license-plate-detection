@@ -112,14 +112,16 @@ function Metrics({ manifest, variant }: { manifest: Manifest; variant: VariantNa
 function Comparison({ manifest, active }: { manifest: Manifest; active: VariantName }) {
   const rows = (['fast', 'accurate'] as const).flatMap((v) => (manifest.variants[v] ? [[v, manifest.variants[v]!] as const] : []));
   if (rows.length < 2) return null;
+  const ghana = rows.every(([, meta]) => meta.metrics.ghana);
   return (
     <div className="mt-6 overflow-x-auto rounded-2xl border border-line">
-      <table className="w-full min-w-[520px] text-left text-sm">
+      <table className="w-full min-w-[600px] text-left text-sm">
         <caption className="sr-only">Fast and Accurate models compared on held-out test images</caption>
         <thead className="bg-surface-2/60 font-mono text-[11px] uppercase tracking-wider text-muted">
           <tr>
             <th scope="col" className="px-4 py-3 font-medium">Model</th>
             <th scope="col" className="px-4 py-3 font-medium">mAP@50 in the wild</th>
+            {ghana && <th scope="col" className="px-4 py-3 font-medium">mAP@50 Ghanaian plates</th>}
             <th scope="col" className="px-4 py-3 font-medium">mAP@50–95</th>
             <th scope="col" className="px-4 py-3 font-medium">Recall</th>
             <th scope="col" className="px-4 py-3 font-medium">Download</th>
@@ -134,6 +136,7 @@ function Comparison({ manifest, active }: { manifest: Manifest; active: VariantN
                   {v === 'fast' ? 'Fast' : 'Accurate'} <span className="font-mono text-xs font-normal text-muted">{meta.architecture} · {meta.imgsz}px</span>
                 </th>
                 <td className="px-4 py-3 font-mono tabular-nums">{pct(s.mAP50)}</td>
+                {ghana && <td className="px-4 py-3 font-mono tabular-nums">{pct(meta.metrics.ghana!.mAP50)}</td>}
                 <td className="px-4 py-3 font-mono tabular-nums">{pct(s.mAP50_95)}</td>
                 <td className="px-4 py-3 font-mono tabular-nums">{pct(s.recall)}</td>
                 <td className="px-4 py-3 font-mono tabular-nums">{formatBytes(meta.bytes)}</td>
