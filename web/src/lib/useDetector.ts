@@ -64,6 +64,8 @@ export function useDetector() {
   const nextId = useRef(1);
   const [manifest, setManifest] = useState<Manifest | null>(null);
   const [state, setState] = useState<DetectorState>({ status: 'loading-manifest' });
+  // Starts the WebGPU worker once; set in the mount effect (it needs spawn).
+  const startGpu = useRef<() => void>(() => {});
 
   const publish = useCallback(() => {
     const slot = active.current && slots.current[active.current];
@@ -115,6 +117,7 @@ export function useDetector() {
           }
         } else if (active.current !== 'gpu') {
           active.current = 'cpu';
+          startGpu.current();
         }
         publish();
         return;
@@ -182,8 +185,23 @@ export function useDetector() {
   // Start the workers, fetch the manifest, then load the Fast model: it's smallest, so the app is usable soonest.
   useEffect(() => {
     let cancelled = false;
+    let gpuStarted = false;
+    // The GPU worker starts after the CPU worker is ready (or straight away when there is
+    // no CPU worker), so its 6 MB runtime never delays the first usable moment.
+    startGpu.current = () => {
+      if (gpuStarted || cancelled) return;
+      gpuStarted = true;
+      runtimes
+        .gpu()
+        .then((rt) => {
+          if (cancelled || !rt) return;
+          spawn('gpu', Promise.resolve(rt));
+          publish(); // show "tuning GPU…" while it warms up
+        })
+        .catch(() => {});
+    };
     if (runtimes.cpu) spawn('cpu', runtimes.cpu);
-    runtimes.gpu.then((rt) => !cancelled && rt && spawn('gpu', Promise.resolve(rt))).catch(() => {});
+    else startGpu.current();
     fetch(`${MODEL_BASE}models.json`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`models.json: ${r.status}`))))
       .then((m: Manifest) => {
@@ -201,7 +219,7 @@ export function useDetector() {
       for (const k of Object.keys(all) as Kind[]) delete all[k];
       requests.clear();
     };
-  }, [spawn, load]);
+  }, [spawn, load, publish]);
 
   /** Runs one detection on the active worker. The bitmap is transferred to it and closed there. */
   const detect = useCallback((image: ImageBitmap, threshold: number, iou = 0.45) => {

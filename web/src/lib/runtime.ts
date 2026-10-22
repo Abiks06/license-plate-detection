@@ -26,20 +26,26 @@ async function fetchRuntime(backend: Backend): Promise<Runtime> {
 
 const forced = new URLSearchParams(location.search).get('backend');
 
+let gpuRuntime: Promise<Runtime | null> | null = null;
+
 /**
- * Which runtimes to start, decided as soon as this module is imported:
- * - cpu: the small CPU-only build. Ready in about a second, so it serves first.
- * - gpu: the WebGPU build, only on devices with a hardware GPU. Its first run compiles
- *   shaders (seconds on a first visit, cached by the browser afterwards), so it warms up
- *   in the background and takes over when ready.
+ * The runtimes:
+ * - cpu: the small CPU-only build, fetched as soon as this module is imported. It serves first.
+ * - gpu(): the WebGPU build, only on devices with a hardware GPU. Fetched on demand (after the
+ *   CPU worker is ready) so it never competes for bandwidth with what the first detection needs.
+ *   Its first run compiles shaders (seconds on a first visit, cached by the browser afterwards),
+ *   so it warms up in the background and takes over when ready.
  * `?backend=wasm` or `?backend=webgpu` forces a single runtime (for comparisons).
  */
-export const runtimes: { cpu: Promise<Runtime> | null; gpu: Promise<Runtime | null> } = {
+export const runtimes = {
   cpu: forced === 'webgpu' ? null : fetchRuntime('wasm'),
-  gpu:
-    forced === 'wasm'
-      ? Promise.resolve(null)
-      : forced === 'webgpu'
-        ? fetchRuntime('webgpu') // its built-in CPU fallback covers devices without a GPU
-        : hasHardwareGpu().then((ok) => (ok ? fetchRuntime('webgpu') : null)),
+  gpu(): Promise<Runtime | null> {
+    gpuRuntime ??=
+      forced === 'wasm'
+        ? Promise.resolve(null)
+        : forced === 'webgpu'
+          ? fetchRuntime('webgpu') // its built-in CPU fallback covers devices without a GPU
+          : hasHardwareGpu().then((ok) => (ok ? fetchRuntime('webgpu') : null));
+    return gpuRuntime;
+  },
 };
