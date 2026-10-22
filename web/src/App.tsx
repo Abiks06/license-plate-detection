@@ -64,7 +64,7 @@ function Segmented<T extends string>({
         >
           {value === o.value && <m.span layoutId={`${id}-pill`} className="absolute inset-0 rounded-full bg-accent" transition={{ type: 'spring', stiffness: 420, damping: 34 }} />}
           <span className="relative flex items-center gap-1.5">{o.label}</span>
-          {o.hint && <span className={`relative font-mono text-[10px] ${value === o.value ? 'text-on-accent/75' : 'text-faint'}`}>{o.hint}</span>}
+          {o.hint && <span className={`relative font-mono text-[10px] ${value === o.value ? 'text-on-accent' : 'text-faint'}`}>{o.hint}</span>}
         </button>
       ))}
     </div>
@@ -114,7 +114,7 @@ function Comparison({ manifest, active }: { manifest: Manifest; active: VariantN
     <div className="mt-6 overflow-x-auto rounded-2xl border border-line">
       <table className="w-full min-w-[520px] text-left text-sm">
         <caption className="sr-only">Fast and Accurate models compared on held-out test images</caption>
-        <thead className="bg-surface-2/60 font-mono text-[11px] uppercase tracking-wider text-faint">
+        <thead className="bg-surface-2/60 font-mono text-[11px] uppercase tracking-wider text-muted">
           <tr>
             <th scope="col" className="px-4 py-3 font-medium">Model</th>
             <th scope="col" className="px-4 py-3 font-medium">mAP@50 in the wild</th>
@@ -129,7 +129,7 @@ function Comparison({ manifest, active }: { manifest: Manifest; active: VariantN
             return (
               <tr key={v} className={v === active ? 'bg-accent-soft' : undefined}>
                 <th scope="row" className="px-4 py-3 font-medium">
-                  {v === 'fast' ? 'Fast' : 'Accurate'} <span className="font-mono text-xs font-normal text-faint">{meta.architecture} · {meta.imgsz}px</span>
+                  {v === 'fast' ? 'Fast' : 'Accurate'} <span className="font-mono text-xs font-normal text-muted">{meta.architecture} · {meta.imgsz}px</span>
                 </th>
                 <td className="px-4 py-3 font-mono tabular-nums">{pct(s.mAP50)}</td>
                 <td className="px-4 py-3 font-mono tabular-nums">{pct(s.mAP50_95)}</td>
