@@ -1,11 +1,12 @@
 /// <reference lib="webworker" />
-// Runs the detector off the main thread so the UI and webcam preview stay smooth.
+// Runs the detector and the plate reader off the main thread so the UI and webcam preview stay smooth.
 
 import cpuMjsUrl from 'onnxruntime-web/ort-wasm-simd-threaded.mjs?url';
 import gpuMjsUrl from 'onnxruntime-web/ort-wasm-simd-threaded.asyncify.mjs?url';
+import { ALPHABET, decodePlate } from '../lib/plateText';
 import { decode, letterbox, nms } from '../lib/postprocess';
 import type { Backend } from '../lib/runtime';
-import type { VariantName, WorkerRequest, WorkerResponse } from '../lib/types';
+import type { Box, VariantName, WorkerRequest, WorkerResponse } from '../lib/types';
 
 declare const self: DedicatedWorkerGlobalScope;
 
@@ -18,6 +19,9 @@ let ort: Ort | null = null;
 let requested: Backend = 'wasm';
 const sessions = new Map<VariantName, Loaded & { backend: Backend }>();
 let active: VariantName | null = null;
+// Each variant's plate reader. Optional: without one, plates are found but not read.
+type Reader = { session: Loaded['session']; slots: number; pad: number; canvas: OffscreenCanvas };
+const readers = new Map<VariantName, Reader>();
 
 const post = (msg: WorkerResponse, transfer: Transferable[] = []) => self.postMessage(msg, transfer);
 const threads = () => (self.crossOriginIsolated ? Math.min(4, navigator.hardwareConcurrency || 2) : 1);
@@ -28,6 +32,8 @@ async function init(backend: Backend, wasm: ArrayBuffer) {
   ort.env.wasm.wasmBinary = wasm;
   // Threads need cross-origin isolation (COOP/COEP headers); fall back to one thread without it.
   ort.env.wasm.numThreads = threads();
+  // Only real errors: ORT otherwise warns (as console errors) that it put shape ops on the CPU, which is by design.
+  ort.env.logLevel = 'error';
   requested = backend;
 }
 
@@ -43,7 +49,7 @@ async function load(variant: VariantName, model: ArrayBuffer, runtime: { backend
   }
 
   const bytes = new Uint8Array(model);
-  const options = { graphOptimizationLevel: 'all' as const };
+  const options = { graphOptimizationLevel: 'all' as const, logSeverityLevel: 3 as const };
   let session: Loaded['session'];
   let backend: Backend = requested;
   try {
@@ -62,6 +68,48 @@ async function load(variant: VariantName, model: ArrayBuffer, runtime: { backend
   await session.run({ [session.inputNames[0]]: new ort.Tensor('float32', loaded.input, [1, 3, imgsz, imgsz]) });
   active = variant;
   post({ type: 'ready', variant, backend, threads: threads(), warmup: performance.now() - t });
+}
+
+/**
+ * The reader always runs on the CPU (WebAssembly), even in the WebGPU worker: it's so small that
+ * GPU transfer overhead dominates (~100 ms per plate on WebGPU vs a few ms on the CPU).
+ */
+async function loadReader({ variant, model, slots, width, height, pad }: Extract<WorkerRequest, { type: 'reader' }>) {
+  if (!ort || readers.has(variant)) return;
+  const session = await ort.InferenceSession.create(new Uint8Array(model), { graphOptimizationLevel: 'all', logSeverityLevel: 3, executionProviders: ['wasm'] });
+  readers.set(variant, { session, slots, pad, canvas: new OffscreenCanvas(width, height) });
+  await session.run({ [session.inputNames[0]]: new ort.Tensor('uint8', new Uint8Array(height * width * 3), [1, height, width, 3]) });
+}
+
+/**
+ * Reads every box in one batch: each plate (plus the reader's margin) is stretched to the
+ * reader's input, no letterbox, as it was trained, then decoded with Ghana's plate formats.
+ * Uses the active variant's reader, or another loaded one while it downloads.
+ */
+async function readPlates(image: ImageBitmap, boxes: Box[]) {
+  const reader = (active && readers.get(active)) ?? readers.values().next().value;
+  if (!reader || !ort || !boxes.length) return;
+  const { session, slots, pad, canvas } = reader;
+  const { width, height } = canvas;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+  const input = new Uint8Array(boxes.length * height * width * 3);
+  boxes.forEach((b, n) => {
+    const x0 = Math.max(0, b.x - b.w * pad);
+    const y0 = Math.max(0, b.y - b.h * pad);
+    const x1 = Math.min(image.width, b.x + b.w * (1 + pad));
+    const y1 = Math.min(image.height, b.y + b.h * (1 + pad));
+    ctx.drawImage(image, x0, y0, x1 - x0, y1 - y0, 0, 0, width, height);
+    const { data } = ctx.getImageData(0, 0, width, height);
+    for (let p = 0, i = 0, o = n * height * width * 3; p < width * height; p++, i += 4, o += 3) {
+      input[o] = data[i];
+      input[o + 1] = data[i + 1];
+      input[o + 2] = data[i + 2];
+    }
+  });
+  const out = await session.run({ [session.inputNames[0]]: new ort.Tensor('uint8', input, [boxes.length, height, width, 3]) });
+  const probs = out[session.outputNames.find((n) => n === 'plate') ?? session.outputNames[0]].data as Float32Array;
+  const per = slots * ALPHABET.length;
+  boxes.forEach((b, n) => (b.read = decodePlate(probs.subarray(n * per, (n + 1) * per), slots)));
 }
 
 async function detect(id: number, image: ImageBitmap, threshold: number, iou: number) {
@@ -93,6 +141,8 @@ async function detect(id: number, image: ImageBitmap, threshold: number, iou: nu
   const anchors = tensor.dims[2];
   const boxes = nms(decode(tensor.data as Float32Array, anchors, threshold, lb, image.width, image.height), iou);
   const t3 = performance.now();
+  await readPlates(image, boxes);
+  const t4 = performance.now();
 
   post({
     type: 'result',
@@ -100,7 +150,7 @@ async function detect(id: number, image: ImageBitmap, threshold: number, iou: nu
     boxes,
     width: image.width,
     height: image.height,
-    timing: { preprocess: t1 - t0, inference: t2 - t1, postprocess: t3 - t2, total: t3 - t0 },
+    timing: { preprocess: t1 - t0, inference: t2 - t1, postprocess: t3 - t2, read: t4 - t3, total: t4 - t0 },
   });
   image.close();
 }
@@ -108,6 +158,8 @@ async function detect(id: number, image: ImageBitmap, threshold: number, iou: nu
 async function handle(msg: WorkerRequest) {
   try {
     if (msg.type === 'load') await load(msg.variant, msg.model, msg.runtime, msg.imgsz);
+    // Reading is an extra: if the reader can't load, plates are still found.
+    else if (msg.type === 'reader') await loadReader(msg).catch((err) => console.info('Plate reader unavailable:', err));
     else await detect(msg.id, msg.image, msg.threshold, msg.iou);
   } catch (err) {
     post({ type: 'error', message: err instanceof Error ? err.message : String(err), id: msg.type === 'detect' ? msg.id : undefined });

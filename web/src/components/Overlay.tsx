@@ -19,12 +19,13 @@ type Rect = { x: number; y: number; w: number; h: number };
 const overlaps = (a: Rect, b: Rect) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 
 /**
- * Picks a spot for each confidence tag: above its box, else below, else inside the top
- * edge, taking the first that covers no other plate or earlier tag and stays in frame.
+ * Picks a spot for each tag: above its box, else below, else inside the top edge, taking
+ * the first that covers no other plate or earlier tag and stays in frame.
  */
-function placeTags(boxes: Box[], w: number, h: number, gap: number, width: number, height: number): Rect[] {
+function placeTags(boxes: Box[], widths: number[], h: number, gap: number, width: number, height: number): Rect[] {
   const placed: Rect[] = [];
   return boxes.map((b, i) => {
+    const w = widths[i];
     const x = Math.min(Math.max(0, b.x), width - w);
     const candidates = [
       { x, y: b.y - h - gap },
@@ -53,6 +54,7 @@ export function Overlay({
   scanning,
   live = false,
   showScore = true,
+  labels,
 }: {
   width: number;
   height: number;
@@ -62,10 +64,14 @@ export function Overlay({
   live?: boolean;
   /** Off for ground-truth boxes, which have no confidence. */
   showScore?: boolean;
+  /** Fixed tag text per box (labelled plates), instead of what the reader made of it. */
+  labels?: (string | undefined)[];
 }) {
   const label = Math.max(12, Math.round(Math.min(width, height) / 38));
-  // Monospace at weight 600 is ~0.62em per character, plus padding: fits "PLATE 100%" / "PLATE".
-  const tags = placeTags(boxes, label * (showScore ? 7.1 : 4.0), label * 1.45, label * 0.25, width, height);
+  // The plate number once read, else the detection confidence.
+  const texts = boxes.map((b, i) => labels?.[i] || b.read?.plate || (showScore ? `PLATE ${Math.round(b.score * 100)}%` : 'PLATE'));
+  // Monospace at weight 600 is ~0.62em per character, plus 0.9em of padding.
+  const tags = placeTags(boxes, texts.map((t) => label * (0.62 * t.length + 0.9)), label * 1.45, label * 0.25, width, height);
 
   return (
     <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true">
@@ -136,7 +142,7 @@ export function Overlay({
                   fontWeight={600}
                   fill="var(--on-accent)"
                 >
-                  {showScore ? `PLATE ${Math.round(b.score * 100)}%` : 'PLATE'}
+                  {texts[i]}
                 </text>
               </m.g>
             </m.g>

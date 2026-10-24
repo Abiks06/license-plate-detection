@@ -1,0 +1,57 @@
+{
+  "labelled": 310,
+  "reader": {
+    "pad0": {
+      "plates": 310,
+      "exact": 0.7194,
+      "exactPerDistinctPlate": 0.6407,
+      "cer": 0.0541
+    },
+    "pad0+ghana": {
+      "plates": 310,
+      "exact": 0.7581,
+      "exactPerDistinctPlate": 0.6742,
+      "cer": 0.048
+    },
+    "pad0.1": {
+      "plates": 310,
+      "exact": 0.7032,
+      "exactPerDistinctPlate": 0.7082,
+      "cer": 0.0764
+    },
+    "pad0.1+ghana": {
+      "plates": 310,
+      "exact": 0.7581,
+      "exactPerDistinctPlate": 0.7519,
+      "cer": 0.0668
+    },
+    "pad0.05": {
+      "plates": 310,
+      "exact": 0.771,
+      "exactPerDistinctPlate": 0.7424,
+      "cer": 0.0526
+    },
+    "pad0.05+ghana": {
+      "plates": 310,
+      "exact": 0.8097,
+      "exactPerDistinctPlate": 0.7676,
+      "cer": 0.0461
+    }
+  },
+  "endToEnd": {
+    "fast": {
+      "plates": 310,
+      "exact": 0.7677,
+      "exactPerDistinctPlate": 0.7193,
+      "cer": 0.0977,
+      "detected": 0.9419
+    },
+    "accurate": {
+      "plates": 310,
+      "exact": 0.7677,
+      "exactPerDistinctPlate": 0.7345,
+      "cer": 0.1016,
+      "detected": 0.9355
+    }
+  }
+}

@@ -3,15 +3,15 @@ import { useEffect, useState } from 'react';
 import type { Box } from '../lib/types';
 import { Overlay } from './Overlay';
 
-type Sample = { id: number; src: string; hero: string; width: number; height: number; truth: Omit<Box, 'score'>[] };
+type Sample = { id: number; src: string; hero: string; width: number; height: number; truth: (Omit<Box, 'score' | 'read'> & { plate?: string })[] };
 
 const BASE = import.meta.env.BASE_URL;
 const SCAN_MS = 1100;
 const HOLD_MS = 3200;
-// Samples with one clear plate read best at hero size.
-const ORDER = [2, 4, 6, 1];
+// Ghanaian samples, one clear plate each, read best at hero size.
+const ORDER = [101, 102, 103, 104];
 
-/** Looping "scan, then find" demo over test images, using their ground-truth labels. */
+/** Looping "scan, then read" demo over test photos, using their hand-labelled plates. */
 export function HeroDemo() {
   const reduced = useReducedMotion();
   const [samples, setSamples] = useState<Sample[]>([]);
@@ -49,7 +49,7 @@ export function HeroDemo() {
         <AnimatePresence initial={false}>
           <m.div key={s.id} className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.6 }}>
             <img src={BASE + s.hero} alt="" className="h-full w-full object-cover" decoding="async" fetchPriority={i === 0 ? 'high' : 'auto'} />
-            <Overlay width={s.width} height={s.height} boxes={showBoxes ? s.truth.map((b) => ({ ...b, score: 1 })) : []} scanning={!showBoxes} showScore={false} />
+            <Overlay width={s.width} height={s.height} boxes={showBoxes ? s.truth.map((b) => ({ ...b, score: 1 })) : []} labels={s.truth.map((b) => b.plate)} scanning={!showBoxes} showScore={false} />
           </m.div>
         </AnimatePresence>
         <div className="absolute bottom-3 left-3 flex gap-1.5" aria-hidden="true">
@@ -58,7 +58,7 @@ export function HeroDemo() {
           ))}
         </div>
       </div>
-      <figcaption className="mt-3 font-mono text-[11px] text-faint">Test-set images with their labelled plates. Try the real detector below.</figcaption>
+      <figcaption className="mt-3 font-mono text-[11px] text-faint">Ghanaian photos the models never trained on, with their labelled plate numbers. Try the real reader below.</figcaption>
     </figure>
   );
 }

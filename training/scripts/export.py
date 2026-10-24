@@ -88,7 +88,10 @@ def main() -> None:
     }
     manifest["output"] = "raw [1, 4 + classes, anchors]: cx, cy, w, h in input pixels, then class scores"
     used_oi = any(v["training"].get("openImages") for v in manifest["variants"].values())
-    manifest["datasets"] = DATASETS if used_oi else DATASETS[:1]
+    training_sets = DATASETS if used_oi else DATASETS[:1]
+    # Keep credits other scripts added (e.g. test-only datasets from evaluate_external.py).
+    extra = [d for d in manifest.get("datasets", []) if d["url"] not in {t["url"] for t in DATASETS}]
+    manifest["datasets"] = training_sets + extra
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     print(f"Wrote {args.out / filename} and models.json")
 

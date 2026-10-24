@@ -102,6 +102,22 @@
           "cpuMsFloat": 54.6,
           "adopted": true
         }
+      },
+      "reader": {
+        "file": "plate-reader-xs.fp16.onnx",
+        "bytes": 1800132,
+        "name": "fast-plate-ocr CCT-XS (global v2)",
+        "source": "https://github.com/ankandrew/fast-plate-ocr",
+        "license": "MIT",
+        "slots": 10,
+        "width": 128,
+        "height": 64,
+        "pad": 0.05,
+        "ghana": {
+          "plates": 310,
+          "exact": 0.8097,
+          "endToEnd": 0.7677
+        }
       }
     },
     "accurate": {
@@ -205,6 +221,22 @@
           "cpuMs": 466.2,
           "cpuMsFloat": 216.0,
           "adopted": true
+        }
+      },
+      "reader": {
+        "file": "plate-reader.fp16.onnx",
+        "bytes": 2785484,
+        "name": "fast-plate-ocr CCT-S (global v2)",
+        "source": "https://github.com/ankandrew/fast-plate-ocr",
+        "license": "MIT",
+        "slots": 10,
+        "width": 128,
+        "height": 64,
+        "pad": 0.0,
+        "ghana": {
+          "plates": 310,
+          "exact": 0.8355,
+          "endToEnd": 0.7935
         }
       }
     }

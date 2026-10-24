@@ -215,7 +215,7 @@ export function ImageMode({
         {samples.length > 0 && (
           <div className="mt-8">
             <p className="font-mono text-[11px] uppercase tracking-wider text-faint">Or try a test image the model never saw</p>
-            <ul className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-8">
+            <ul className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-6">
               {samples.map((s, i) => (
                 <m.li key={s.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.04 * i, duration: 0.4, ease }}>
                   <button

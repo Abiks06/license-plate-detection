@@ -1,5 +1,5 @@
 import { m } from "motion/react";
-import { Code, Cpu, ImageIcon, Lock, ScanSearch, Sparkles, Video } from 'lucide-react';
+import { Code, ImageIcon, Lock, ScanSearch, ScanText, Sparkles, SpellCheck, Video } from 'lucide-react';
 import { useState } from 'react';
 import { HeroDemo } from './components/HeroDemo';
 import { ImageMode } from './components/ImageMode';
@@ -113,15 +113,17 @@ function Comparison({ manifest, active }: { manifest: Manifest; active: VariantN
   const rows = (['fast', 'accurate'] as const).flatMap((v) => (manifest.variants[v] ? [[v, manifest.variants[v]!] as const] : []));
   if (rows.length < 2) return null;
   const ghana = rows.every(([, meta]) => meta.metrics.ghana);
+  const read = rows.every(([, meta]) => meta.reader?.ghana);
   return (
     <div className="mt-6 overflow-x-auto rounded-2xl border border-line">
-      <table className="w-full min-w-[600px] text-left text-sm">
+      <table className="w-full min-w-[720px] text-left text-sm">
         <caption className="sr-only">Fast and Accurate models compared on held-out test images</caption>
         <thead className="bg-surface-2/60 font-mono text-[11px] uppercase tracking-wider text-muted">
           <tr>
             <th scope="col" className="px-4 py-3 font-medium">Model</th>
             <th scope="col" className="px-4 py-3 font-medium">mAP@50 in the wild</th>
             {ghana && <th scope="col" className="px-4 py-3 font-medium">mAP@50 Ghanaian plates</th>}
+            {read && <th scope="col" className="px-4 py-3 font-medium">Ghanaian plates read exactly</th>}
             <th scope="col" className="px-4 py-3 font-medium">mAP@50–95</th>
             <th scope="col" className="px-4 py-3 font-medium">Recall</th>
             <th scope="col" className="px-4 py-3 font-medium">Download</th>
@@ -137,9 +139,10 @@ function Comparison({ manifest, active }: { manifest: Manifest; active: VariantN
                 </th>
                 <td className="px-4 py-3 font-mono tabular-nums">{pct(s.mAP50)}</td>
                 {ghana && <td className="px-4 py-3 font-mono tabular-nums">{pct(meta.metrics.ghana!.mAP50)}</td>}
+                {read && <td className="px-4 py-3 font-mono tabular-nums">{pct(meta.reader!.ghana!.endToEnd)}</td>}
                 <td className="px-4 py-3 font-mono tabular-nums">{pct(s.mAP50_95)}</td>
                 <td className="px-4 py-3 font-mono tabular-nums">{pct(s.recall)}</td>
-                <td className="px-4 py-3 font-mono tabular-nums">{formatBytes(meta.bytes)}</td>
+                <td className="px-4 py-3 font-mono tabular-nums">{formatBytes(meta.bytes + (meta.reader?.bytes ?? 0))}</td>
               </tr>
             );
           })}
@@ -149,10 +152,27 @@ function Comparison({ manifest, active }: { manifest: Manifest; active: VariantN
   );
 }
 
+/** The plate reader's measured accuracy on Ghanaian plates, the part people care about. */
+function ReaderNote({ manifest, variant }: { manifest: Manifest; variant: VariantName }) {
+  const r = manifest.variants[variant]?.reader;
+  if (!r?.ghana) return null;
+  return (
+    <p className="mt-6 max-w-3xl text-sm leading-relaxed text-muted">
+      <span className="font-medium text-text">Reading the number:</span> with the detector finding each plate first, the {variant === 'fast' ? 'Fast' : 'Accurate'} model reads{' '}
+      <span className="font-mono text-text">{pct(r.ghana.endToEnd)}</span> of {r.ghana.plates} hand-labelled Ghanaian plates exactly right, every character (
+      <span className="font-mono text-text">{pct(r.ghana.exact)}</span> when given the labelled box). Its reader is{' '}
+      <a href={r.source} className="underline underline-offset-4 hover:text-text">
+        {r.name}
+      </a>{' '}
+      ({r.license}, {formatBytes(r.bytes)}), never trained on Ghanaian plates; most misses are blurred or tiny plates and Ghana’s slashed zero.
+    </p>
+  );
+}
+
 const STEPS = [
-  { icon: ImageIcon, title: 'Letterbox', body: 'Your image is scaled into a square model input on a canvas, padded with grey so nothing is stretched.' },
-  { icon: Cpu, title: 'YOLO11', body: 'A convolutional neural network fine-tuned on thousands of labelled plates scores every region of the image in one pass.' },
-  { icon: ScanSearch, title: 'Decode + NMS', body: 'Candidate boxes above your confidence threshold are mapped back to the photo; overlapping duplicates are suppressed.' },
+  { icon: ScanSearch, title: 'Find', body: 'YOLO11, a convolutional neural network fine-tuned on thousands of labelled plates, scores every region of the photo in one pass. Boxes above your confidence threshold are kept and duplicates merged.' },
+  { icon: ScanText, title: 'Read', body: 'Each plate is cropped from the photo and passed to a compact vision transformer that predicts all ten character slots at once, with a probability for every letter and digit.' },
+  { icon: SpellCheck, title: 'Check the format', body: 'Ghanaian plates follow fixed patterns (GR 3966-21, GR 672 H). The most probable reading that fits one wins, so a letter I can’t sneak into the year. Foreign plates are read as they are.' },
   { icon: Lock, title: 'Stays on device', body: 'All of it runs in a Web Worker, on your GPU via WebGPU where available or on the CPU via WebAssembly. No upload, no server, no tracking: close the tab and it’s gone.' },
 ];
 
@@ -190,7 +210,7 @@ export default function App() {
               <Status state={state} />
             </div>
             <h1 className="mt-6 max-w-3xl text-4xl font-semibold leading-[1.05] tracking-tight sm:text-6xl">
-              {['Find license plates', 'in any photo.'].map((line, i) => (
+              {['Read license plates', 'in any photo.'].map((line, i) => (
                 <span key={line} className="block overflow-hidden pb-1">
                   <span className={`anim-rise block ${i === 1 ? 'text-accent' : ''}`} style={{ animationDelay: `${0.1 + i * 0.1}s` }}>
                     {line}
@@ -199,7 +219,7 @@ export default function App() {
               ))}
             </h1>
             <p className="anim-fade-up mt-5 max-w-xl text-lg leading-relaxed text-muted" style={{ animationDelay: '0.3s' }}>
-              A YOLO11 neural network that runs entirely in your browser. Detect plates in photos or live from your camera, then redact them in one click. Nothing is ever uploaded.
+              Two neural networks that run entirely in your browser: one finds each plate, the other reads its number, tuned for Ghanaian plates. Use a photo or your live camera, and redact plates in one click. Nothing is ever uploaded.
             </p>
             {isPreview(manifest) && (
               <p className="anim-fade-up mt-6 inline-flex items-center gap-2 rounded-lg border border-accent/40 bg-accent-soft px-3 py-2 text-sm">
@@ -231,7 +251,7 @@ export default function App() {
                 label="Model"
                 value={variant}
                 onChange={(v) => switchVariant(v)}
-                options={variants.map((v) => ({ value: v, label: v === 'fast' ? 'Fast' : 'Accurate', hint: formatBytes(manifest.variants[v]!.bytes) }))}
+                options={variants.map((v) => ({ value: v, label: v === 'fast' ? 'Fast' : 'Accurate', hint: formatBytes(manifest.variants[v]!.bytes + (manifest.variants[v]!.reader?.bytes ?? 0)) }))}
               />
             )}
             <label className="ml-auto flex items-center gap-3 rounded-full border border-line bg-surface px-4 py-1.5 text-sm text-muted">
@@ -283,6 +303,7 @@ export default function App() {
               </p>
               <Metrics manifest={manifest} variant={variant} />
               <Comparison manifest={manifest} active={variant} />
+              <ReaderNote manifest={manifest} variant={variant} />
             </div>
           )}
         </section>

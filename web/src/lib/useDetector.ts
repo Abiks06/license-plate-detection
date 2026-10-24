@@ -66,6 +66,22 @@ export function useDetector() {
   const [state, setState] = useState<DetectorState>({ status: 'loading-manifest' });
   // Starts the WebGPU worker once; set in the mount effect (it needs spawn).
   const startGpu = useRef<() => void>(() => {});
+  // Each variant's plate reader: one download each, started with its detector; null if unavailable.
+  const readerBytes = useRef(new Map<VariantName, Promise<ArrayBuffer | null>>());
+  const readerDownload = useCallback((variant: VariantName) => {
+    const info = manifestRef.current?.variants[variant]?.reader;
+    if (!readerBytes.current.has(variant)) {
+      readerBytes.current.set(
+        variant,
+        info
+          ? fetch(MODEL_BASE + info.file)
+              .then((r) => (r.ok ? r.arrayBuffer() : null))
+              .catch(() => null)
+          : Promise.resolve(null),
+      );
+    }
+    return readerBytes.current.get(variant)!;
+  }, []);
 
   const publish = useCallback(() => {
     const slot = active.current && slots.current[active.current];
@@ -102,7 +118,16 @@ export function useDetector() {
       { type: 'load', variant, model, runtime: first ? runtime : undefined, imgsz: meta.imgsz },
       first ? [model, runtime.wasm] : [model],
     );
-  }, []);
+    // The variant's plate reader follows on its own, so it never delays the detection.
+    const info = meta.reader;
+    if (info) {
+      readerDownload(variant).then((reader) => {
+        if (!reader || slot.retiring) return;
+        const copy = reader.slice(0);
+        slot.worker.postMessage({ type: 'reader', variant, model: copy, slots: info.slots, width: info.width, height: info.height, pad: info.pad }, [copy]);
+      });
+    }
+  }, [readerDownload]);
 
   const onMessage = useCallback(
     (slot: Slot, msg: WorkerResponse) => {

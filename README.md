@@ -1,22 +1,42 @@
-# PlateSight: License Plate Detection
+# PlateSight: License Plate Recognition
 
-A YOLO11 license plate detector that runs **entirely in your browser**. Detect plates in photos or live from your webcam, then redact them in one click. Images and frames never leave your device.
+Reads license plate numbers **entirely in your browser**, tuned for Ghanaian plates. A YOLO11 detector finds each plate, a plate reader turns it into text (`GR 3966-21`), and Ghana's plate formats correct the reading. Works on photos or live from your webcam, with one-click redaction. Images and frames never leave your device.
 
 **[Live demo → platesight-xi.vercel.app](https://platesight-xi.vercel.app)**
 
-![PlateSight detecting a license plate](docs/screenshot.jpg)
+![PlateSight reading a Ghanaian plate: GG 3096-17](docs/screenshot.jpg)
 
 > This is a rebuild of the license plate detection model from my Research Methods group project at Academic City University (Feb–May 2026), which I led. The training pipeline, models and web app in this repository were built from scratch in October 2026.
 
 ## Features
 
 - **On-device inference:** ONNX Runtime Web in Web Workers. It answers on the CPU (multi-threaded WebAssembly) within about two seconds, and on devices with a hardware GPU it warms up WebGPU in the background and switches over when ready. Nothing is uploaded.
-- **Two models:** *Fast* (YOLO11n, 640px) for live video and *Accurate* (YOLO11s, 768px) for photos, with each one's measured test accuracy shown in the app.
-- **Image and live camera modes:** drag and drop, paste, browse, eight test-set samples, or real-time webcam detection with an FPS meter.
+- **Plate numbers, not just boxes:** each detected plate is read by a compact vision transformer and decoded against Ghana's plate formats, shown as printed (`GR 3966-21`, `GT 9556 V`) with a copy button and uncertain characters underlined. Foreign plates are read as they are.
+- **Two models:** *Fast* (YOLO11n at 640px + the XS reader) for live video and *Accurate* (YOLO11s at 768px + the S reader) for photos, with each one's measured accuracy shown in the app.
+- **Image and live camera modes:** drag and drop, paste, browse, twelve samples (four Ghanaian), or real-time webcam reading with an FPS meter.
 - **One-click redaction:** plates are pixelated (not blurred, so they can't be sharpened back) and the image downloads locally.
 - **Hardened delivery:** strict Content-Security-Policy, self-hosted fonts, immutable caching for hashed assets, and the first model preloaded from the HTML.
 
 ## Results
+
+### Reading the plate number
+
+Measured on **310 hand-labelled Ghanaian plates** (111 distinct) from the public-domain [Ghanaian License Plates](https://universe.roboflow.com/luther-eyandi/ghanaian-license-plates) dataset, which no model here trained on. I transcribed all 380 plates in it blind (without seeing any model's reading); 70 too blurred or cut off for a person to read are excluded. Labels: `training/ocr/ghana-plates.csv`. "Exact" means every character right.
+
+| | Reader | Download | Exact, reader on the labelled box | **Exact, end to end** | Characters wrong |
+| :-- | :-- | :-- | :-- | :-- | :-- |
+| **Fast** | CCT-XS | 1.8 MB | 81.0% | **76.8%** | 4.6% |
+| **Accurate** | CCT-S | 2.8 MB | 83.5% | **79.4%** | 3.2% |
+
+- **End to end** is what the app does: the detector finds the plate at the default 35% threshold (it finds 94%), then the reader reads its box. A missed plate counts as wrong.
+- **Ghana formats help:** the reader predicts each of its 10 character slots independently, so it can put a letter in the year (`AS 4633-I2`). Choosing the most probable reading that fits a Ghanaian pattern (two letters, 1–4 digits, then a two-digit year or one letter) lifts the S reader from 79.0% to 83.5% on labelled boxes. If the free reading is far more probable than any Ghanaian one (a foreign plate), it's kept instead.
+- **What still fails:** Ghana's slashed zero, which the reader sometimes takes for a `D` or drops (`GR 3842-09` → `GR3842D`); motion blur; and steep angles. The readers are [fast-plate-ocr](https://github.com/ankandrew/fast-plate-ocr)'s global models, trained on plates from 60+ countries but not Ghana, so fine-tuning on Ghanaian plates is the clear next step.
+- **Choices, and how they were made:** the crop margin (0% for S, 5% for XS) was picked from three options on this same set, so treat these as slightly optimistic; there's no separate validation set yet. Averaging three crops and a prior against letter-ending plates each moved results by under a point (noise at this size) and were left out.
+- **Speed:** the readers run on the CPU (WebAssembly) even when the detector uses WebGPU: at this size GPU transfer overhead dominated (~100 ms per plate on WebGPU vs 13–50 ms for XS on the CPU, on battery). Float16 weights halve both downloads with identical readings on all 310 plates.
+
+Reproduce with `training/scripts/evaluate_ocr.py` (scores in `training/results/ocr-ghana*.json`).
+
+### Finding the plate
 
 Both models were trained on a Colab GPU for up to 120 epochs at 768px with early stopping (Fast peaked at epoch 76, Accurate at 64). Scores below are for the **exact ONNX files the app serves**, evaluated at the input size the app uses.
 
@@ -56,7 +76,7 @@ On mains power the CPU path is roughly 2.5–3× faster than these battery figur
 ### Limitations
 
 - Training data is mostly Vietnamese CCTV and Open Images photos. It transfers well to Ghanaian plates (0.95 mAP@50), but that test set is 321 car-park photos from one dataset; night scenes, moving traffic and motorbike plates are untested.
-- Detection only: plates are located, not read (no OCR).
+- The plate readers have never seen a Ghanaian plate; about 1 in 5 Ghanaian plates is misread somewhere. Underlined characters in the app are the ones to double-check.
 - On GPU devices the first visit downloads both runtimes (about 3.5 MB + 6.4 MB compressed); both are cached after that.
 
 ## How it works
@@ -64,7 +84,8 @@ On mains power the CPU path is roughly 2.5–3× faster than these battery figur
 1. **Data:** [Vehicle Registration Plates](https://universe.roboflow.com/augmented-startups/vehicle-registration-plates-trudk) (Augmented Startups, CC BY 4.0), plus up to 6,000 Open Images V7 *Vehicle registration plate* training photos for variety.
 2. **Training:** a COCO-pretrained YOLO11 convolutional neural network fine-tuned as a single-class detector.
 3. **Size and precision:** `benchmark_sizes.py` measures accuracy against speed per input size; `optimize_model.py` tries INT8, then float16 weights, behind the accuracy gate.
-4. **Inference:** letterbox to the model's input size on an OffscreenCanvas, run the model, decode boxes and apply non-maximum suppression in TypeScript, then map back to the original pixels.
+4. **Finding:** letterbox to the detector's input size on an OffscreenCanvas, run it, decode boxes and apply non-maximum suppression in TypeScript, then map back to the original pixels.
+5. **Reading:** each box is stretched to the reader's 128×64 input (as it was trained, no letterbox) and all plates are read in one batch. `web/src/lib/plateText.ts` (mirrored by `training/scripts/plate_text.py`, which the scores come from) turns the per-slot probabilities into the most probable Ghanaian-format reading.
 
 ## Train it
 
@@ -97,13 +118,23 @@ training/.venv/Scripts/python training/scripts/export.py --variant fast
 
 ### Test on Ghanaian plates
 
-`evaluate_external.py` scores the served ONNX files on any dataset they never trained on. Download the Roboflow Universe datasets [Ghanaian License Plates](https://universe.roboflow.com/ghana-licenses/ghanaian-license-plates-6vwgc) (public domain) and [Ghana License Plate Detector](https://universe.roboflow.com/aklikaisaac300-gmail-com/ghana-license-plate-detector) (CC BY 4.0) in *YOLOv11* format, then:
+`evaluate_external.py` scores the served ONNX files on any dataset they never trained on. Download the Roboflow Universe datasets [Ghanaian License Plates](https://universe.roboflow.com/luther-eyandi/ghanaian-license-plates) (public domain) and [Ghana License Plate Detector](https://universe.roboflow.com/aklikaisaac300-gmail-com/ghana-license-plate-detector) (CC BY 4.0) in *YOLOv11* format, then:
 
 ```bash
 training/.venv/Scripts/python training/scripts/evaluate_external.py --name ghana path/to/first.zip path/to/second.zip
 ```
 
 It merges every split into one test set, keeps only plate classes, removes photos shared between the datasets and Roboflow's augmented copies, and writes `training/results/ghana.json` (plus an unaugmented "clean" subset score when an export was augmented). It also adds the scores and dataset credit to `models.json`, which the app shows. Pass several zips to merge datasets; the results above use the first dataset only.
+
+To score plate reading on the same photos (uses the transcriptions in `training/ocr/ghana-plates.csv`):
+
+```bash
+training/.venv/Scripts/python -m pip install "fast-plate-ocr[onnx]"   # only to download the reader models
+training/.venv/Scripts/python training/scripts/evaluate_ocr.py "path/to/Ghanaian License Plates.v2i.yolov11.zip" --reader web/public/model/plate-reader.fp16.onnx
+training/.venv/Scripts/python training/scripts/evaluate_ocr.py "path/to/Ghanaian License Plates.v2i.yolov11.zip" --reader web/public/model/plate-reader-xs.fp16.onnx --pads 0 0.1 0.05 --out training/results/ocr-ghana-xs.json
+```
+
+The last `--pads` value is the crop margin used end to end; the scores go into `models.json` for the variant that pairs with that reader.
 
 ## Repository layout
 
@@ -115,6 +146,10 @@ training/
   scripts/export.py            evaluate on test splits, export ONNX + models.json
   scripts/optimize_model.py    INT8 / float16 candidates behind an accuracy gate
   scripts/evaluate_external.py score the served models on an outside dataset (e.g. Ghana)
+  scripts/evaluate_ocr.py      how often plate numbers are read exactly, reader-only and end to end
+  scripts/plate_text.py        Ghana-format decoding of the reader's output
+  scripts/add_ghana_samples.py Ghanaian sample photos for the app
+  ocr/ghana-plates.csv         hand-transcribed plate numbers for the Ghana dataset
   results/{fast,accurate}/     trained weights, training curves, PR curves, confusion matrices
   train_colab.ipynb            one-click GPU training
 web/                           PlateSight (Vite, React, Tailwind, Motion, ONNX Runtime Web)
@@ -123,4 +158,4 @@ docs/                          README assets
 
 ## Licenses
 
-Code and models: [AGPL-3.0](LICENSE), as required by Ultralytics YOLO. Training data: CC BY 4.0; credit to Augmented Startups / Roboflow Universe and the Open Images authors. Sample images in the app come from the dataset's test split.
+Code and detectors: [AGPL-3.0](LICENSE), as required by Ultralytics YOLO. Plate readers: [fast-plate-ocr](https://github.com/ankandrew/fast-plate-ocr) by ankandrew, MIT. Training data: CC BY 4.0; credit to Augmented Startups / Roboflow Universe and the Open Images authors. Sample images come from that dataset's test split and from the public-domain Ghanaian License Plates dataset (luther-eyandi, Roboflow Universe), which is also the source of the Ghana evaluation.

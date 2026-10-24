@@ -2,6 +2,78 @@
   "source": "Vehicle Registration Plates test split (Augmented Startups, Roboflow Universe), CC BY 4.0",
   "samples": [
     {
+      "id": 101,
+      "src": "samples/sample-101.jpg",
+      "thumb": "samples/sample-101-thumb.webp",
+      "width": 640,
+      "height": 640,
+      "truth": [
+        {
+          "x": 218.7,
+          "y": 385.0,
+          "w": 218.7,
+          "h": 48.0,
+          "plate": "GW 4166-23"
+        }
+      ],
+      "hero": "samples/sample-101-hero.webp",
+      "source": "Ghanaian License Plates (luther-eyandi, Roboflow Universe), public domain"
+    },
+    {
+      "id": 102,
+      "src": "samples/sample-102.jpg",
+      "thumb": "samples/sample-102-thumb.webp",
+      "width": 640,
+      "height": 640,
+      "truth": [
+        {
+          "x": 297.8,
+          "y": 270.0,
+          "w": 85.6,
+          "h": 80.8,
+          "plate": "GG 3096-17"
+        }
+      ],
+      "hero": "samples/sample-102-hero.webp",
+      "source": "Ghanaian License Plates (luther-eyandi, Roboflow Universe), public domain"
+    },
+    {
+      "id": 103,
+      "src": "samples/sample-103.jpg",
+      "thumb": "samples/sample-103-thumb.webp",
+      "width": 640,
+      "height": 640,
+      "truth": [
+        {
+          "x": 94.2,
+          "y": 419.2,
+          "w": 169.5,
+          "h": 94.5,
+          "plate": "GB 3487-21"
+        }
+      ],
+      "hero": "samples/sample-103-hero.webp",
+      "source": "Ghanaian License Plates (luther-eyandi, Roboflow Universe), public domain"
+    },
+    {
+      "id": 104,
+      "src": "samples/sample-104.jpg",
+      "thumb": "samples/sample-104-thumb.webp",
+      "width": 640,
+      "height": 640,
+      "truth": [
+        {
+          "x": 182.7,
+          "y": 229.1,
+          "w": 170.0,
+          "h": 95.8,
+          "plate": "GT 9556 V"
+        }
+      ],
+      "hero": "samples/sample-104-hero.webp",
+      "source": "Ghanaian License Plates (luther-eyandi, Roboflow Universe), public domain"
+    },
+    {
       "id": 1,
       "src": "samples/sample-1.jpg",
       "thumb": "samples/sample-1-thumb.webp",
