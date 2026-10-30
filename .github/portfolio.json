@@ -7,5 +7,56 @@
     "Detectors trained on a cloud GPU with a reproducible PyTorch/Ultralytics pipeline: 0.87–0.89 mAP@50 on 2,065 real-world photos, 0.95 on Ghanaian plates. INT8 was rejected by an accuracy gate; float16 weights halved downloads with no loss.",
     "ONNX Runtime Web in Web Workers with WebGPU and WebAssembly, nothing uploaded; live webcam reading and one-click redaction."
   ],
-  "keywords": ["Python", "PyTorch", "YOLO", "OCR", "ONNX Runtime", "WebGPU", "React"]
+  "keywords": [
+    "Python",
+    "PyTorch",
+    "YOLO",
+    "OCR",
+    "ONNX Runtime",
+    "WebGPU",
+    "React"
+  ],
+  "tracks": [
+    "ml",
+    "fullstack"
+  ],
+  "metrics": [
+    {
+      "value": "79%",
+      "label": "of 310 hand-labelled Ghanaian plates read exactly, end to end",
+      "headline": true
+    },
+    {
+      "value": "0.95",
+      "label": "mAP@50 finding Ghanaian plates (0.87–0.89 on 2,065 real-world photos)"
+    },
+    {
+      "value": "13–50 ms",
+      "label": "to read a plate on the CPU with the fast reader"
+    }
+  ],
+  "pipeline": [
+    "Photo or webcam",
+    "YOLO11 detector (WebGPU or WebAssembly)",
+    "Plate crop",
+    "Plate reader (WebAssembly)",
+    "Ghana format decoder"
+  ],
+  "decisions": [
+    {
+      "choice": "Float16 weights",
+      "over": "INT8 quantisation",
+      "because": "INT8 lost 10 points on real-world photos and was rejected by the accuracy gate; float16 halved the downloads with no measurable loss."
+    },
+    {
+      "choice": "Run the plate reader on the CPU",
+      "over": "WebGPU for every model",
+      "because": "At this size, GPU transfer overhead dominated: about 100 ms per plate on WebGPU against 13–50 ms on the CPU."
+    },
+    {
+      "choice": "Pick the most probable reading that fits a Ghanaian plate pattern",
+      "over": "Each character slot's top guess",
+      "because": "The reader predicts slots independently and can put a letter in the year; format-aware decoding adds 4.5 points."
+    }
+  ]
 }
